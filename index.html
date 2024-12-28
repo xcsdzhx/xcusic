@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+        }
+
+        .player {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .player::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: var(--background-image);
+            background-size: cover;
+            background-position: center;
+            filter: blur(50px);
+            z-index: 1;
+        }
+
+        .cover {
+            position: relative;
+            z-index: 2;
+            width: 300px;
+            height: 300px;
+            background-size: cover;
+            background-position: center;
+            border-radius: 15px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
+        }
+
+        .controls {
+            position: relative;
+            z-index: 2;
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #444;
+            color: #fff;
+        }
+
+        button:hover {
+            background-color: #666;
+        }
+
+        input[type="file"] {
+            margin-top: 20px;
+            z-index: 2;
+        }
+
+        .progress-container {
+            position: absolute;
+            top: 20px;
+            width: 90%;
+            max-width: 800px;
+            z-index: 3;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            appearance: none;
+            background: #444;
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="player">
+        <div class="progress-container">
+            <input type="range" id="progressBar" value="0" step="1" oninput="showPreview()" onmouseup="seekMusic()" ontouchend="seekMusic()">
+        </div>
+        <div class="cover" id="cover"></div>
+        <audio id="audio"></audio>
+        <div class="controls">
+            <button onclick="prevSong()">Prev</button>
+            <button onclick="playMusic()">Play</button>
+            <button onclick="pauseMusic()">Pause</button>
+            <button onclick="nextSong()">Next</button>
+            <input type="file" id="fileInput" accept="audio/*" multiple>
+        </div>
+    </div>
+
+    <script>
+        const audio = document.getElementById('audio');
+        const progressBar = document.getElementById('progressBar');
+        const cover = document.getElementById('cover');
+        const fileInput = document.getElementById('fileInput');
+        let isDragging = false;
+
+        let playlist = [];
+        let currentIndex = 0;
+
+        // 播放音乐
+        function playMusic() {
+            if (playlist.length > 0) {
+                audio.play();
+            }
+        }
+
+        // 暂停音乐
+        function pauseMusic() {
+            audio.pause();
+        }
+
+        // 切换到上一首
+        function prevSong() {
+            if (playlist.length > 0) {
+                currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+                loadSong(currentIndex);
+                playMusic();
+            }
+        }
+
+        // 切换到下一首
+        function nextSong() {
+            if (playlist.length > 0) {
+                currentIndex = (currentIndex + 1) % playlist.length;
+                loadSong(currentIndex);
+                playMusic();
+            }
+        }
+
+        // 加载歌曲并设置封面
+        function loadSong(index) {
+            const file = playlist[index];
+            if (file) {
+                const objectURL = URL.createObjectURL(file);
+                audio.src = objectURL;
+                audio.load();
+
+                extractCover(file);
+            }
+        }
+
+        // 文件加载
+        fileInput.addEventListener('change', (event) => {
+            playlist = Array.from(event.target.files);
+            if (playlist.length > 0) {
+                currentIndex = 0;
+                loadSong(currentIndex);
+            }
+        });
+
+        // 提取封面图并设置背景
+        function extractCover(file) {
+            new jsmediatags.Reader(file).read({
+                onSuccess: (tag) => {
+                    const picture = tag.tags.picture;
+                    if (picture) {
+                        const base64String = arrayBufferToBase64(picture.data);
+                        const coverURL = `data:${picture.format};base64,${base64String}`;
+                        cover.style.backgroundImage = `url(${coverURL})`;
+                        document.querySelector('.player').style.setProperty('--background-image', `url(${coverURL})`);
+                    } else {
+                        setDefaultCover();
+                    }
+                },
+                onError: () => setDefaultCover(),
+            });
+        }
+
+        // 转换图片数据
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return window.btoa(binary);
+        }
+
+        // 设置默认封面
+        function setDefaultCover() {
+            const defaultCoverURL = 'https://via.placeholder.com/300x300?text=No+Cover';
+            cover.style.backgroundImage = `url(${defaultCoverURL})`;
+            document.querySelector('.player').style.setProperty('--background-image', `url(${defaultCoverURL})`);
+        }
+
+        // 音频元数据加载完成后设置进度条
+        audio.addEventListener('loadedmetadata', () => {
+            progressBar.max = Math.floor(audio.duration);
+        });
+
+        // 更新进度条显示
+        audio.addEventListener('timeupdate', () => {
+            if (!isDragging) {
+                progressBar.value = Math.floor(audio.currentTime);
+            }
+        });
+
+        // 拖动时预览
+        function showPreview() {
+            isDragging = true;
+        }
+
+        // 拖动结束时跳转播放位置
+        function seekMusic() {
+            isDragging = false;
+            audio.currentTime = progressBar.value;
+        }
+    </script>
+
+    <!-- 引入 jsmediatags -->
+    <script src="https://cdn.jsdelivr.net/npm/jsmediatags/dist/jsmediatags.min.js"></script>
+</body>
+</html>
