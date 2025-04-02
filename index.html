@@ -1,10 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Music Player</title>
+    <title>HTML Music Player (Smooth Crossfade)</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
+
     <style>
+        /* --- Base Styles --- */
         * {
             margin: 0;
             padding: 0;
@@ -15,6 +20,7 @@
             height: 100%;
             width: 100%;
             overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         body {
@@ -24,6 +30,7 @@
             background: #000;
         }
 
+        /* --- Player Container --- */
         .player {
             position: relative;
             width: 100%;
@@ -33,227 +40,469 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            padding: 20px;
+            /* CSS Variables for Background Control */
+            --before-background-image: url('https://via.placeholder.com/800x600?text=Click+Cover+to+Load');
+            --after-background-image: url(''); /* Initially empty */
+            --after-opacity: 0; /* Initial opacity for ::after */
         }
 
-        .player::before {
+        /* --- Blurred Background Layers --- */
+        /* Common styles for both pseudo-elements */
+        .player::before,
+        .player::after {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: var(--background-image);
+            top: -10px; left: -10px; right: -10px; bottom: -10px;
+            width: calc(100% + 20px);
+            height: calc(100% + 20px);
             background-size: cover;
             background-position: center;
-            filter: blur(50px);
-            z-index: 1;
+            filter: blur(30px); /* Adjusted blur - 降低模糊度 */
+            /* Apply flow animation to both */
+            animation: bgFlow 60s infinite alternate ease-in-out;
+            background-color: var(--before-background-color, #000); /* 使用 CSS 变量 */
+        }
+
+        /* ::before - Bottom layer (always visible at base opacity) */
+        .player::before {
+            background-image: var(--before-background-image);
+            z-index: 1; /* Bottom layer */
+            opacity: 0.8; /* Adjusted opacity - 提高透明度 */
+            /* No transition needed here for background image itself */
+        }
+
+        /* ::after - Top layer (for crossfading) */
+        .player::after {
+            background-image: var(--after-background-image);
+            z-index: 1.1; /* Just above ::before */
+            opacity: var(--after-opacity); /* Controlled by JS via CSS variable */
+            /* Smooth opacity transition for crossfade */
+            transition: opacity 1.2s ease-in-out; /* Duration for smooth fade */
+        }
+
+        /* Background Flow Animation */
+        @keyframes bgFlow {
+            0% { transform: scale(1.15) translate(0px, 0px); }
+            25% { transform: scale(1.20) translate(-10px, 15px); }
+            50% { transform: scale(1.25) translate(10px, -10px); }
+            75% { transform: scale(1.20) translate(5px, 10px); }
+            100% { transform: scale(1.15) translate(0px, 0px); }
+        }
+
+        /* --- Content Elements Styling --- */
+        .song-title {
+            position: relative;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.8em;
+            font-weight: 600;
+            z-index: 3; /* Above background layers */
+            color: rgba(255, 255, 255, 0.95);
+            text-shadow: 0px 2px 6px rgba(0, 0, 0, 0.9), 0px 0px 1px rgba(0, 0, 0, 0.9);
+            width: 90%;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            transition: color 0.5s ease;
         }
 
         .cover {
             position: relative;
-            z-index: 2;
-            width: 300px;
-            height: 300px;
+            z-index: 2; /* Above background layers */
+            width: 60vmin;
+            height: 60vmin;
+            max-width: 300px;
+            max-height: 300px;
+            background-image: url('https://via.placeholder.com/300x300?text=Click+to+Load');
             background-size: cover;
             background-position: center;
             border-radius: 15px;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            margin-bottom: 30px;
+            /* Shorter transition for the main cover image itself */
+            transition: background-image 0.5s ease-in-out;
+            cursor: pointer; /* Indicate clickable */
         }
 
-        .controls {
+        /* Progress Bar */
+        .progress-bar {
             position: relative;
-            z-index: 2;
-            margin-top: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            width: 80%;
+            max-width: 400px;
+            z-index: 3; /* Above background */
+            margin-bottom: 25px;
         }
 
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            background-color: #444;
-            color: #fff;
-        }
-
-        button:hover {
-            background-color: #666;
-        }
-
-        input[type="file"] {
-            margin-top: 20px;
-            z-index: 2;
-        }
-
-        .progress-container {
-            position: absolute;
-            top: 20px;
-            width: 90%;
-            max-width: 800px;
-            z-index: 3;
-        }
-
-        input[type="range"] {
-            width: 100%;
+        .progress-bar input[type="range"] {
+            -webkit-appearance: none;
             appearance: none;
-            background: #444;
+            width: 100%;
             height: 6px;
+            background: linear-gradient(to right, silver 0%, #3b3b3b 0%);
             border-radius: 3px;
             outline: none;
+            transition: height 0.2s ease, background 0.1s linear;
+            cursor: pointer;
         }
 
-        input[type="range"]::-webkit-slider-thumb {
+        .progress-bar input[type="range"]:hover {
+            height: 10px; /* Track thickens on hover */
+        }
+
+        /* Hide Progress Bar Thumb */
+        .progress-bar input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
             appearance: none;
-            width: 15px;
-            height: 15px;
-            border-radius: 50%;
-            background: #fff;
+            width: 1px; height: 1px;
+            background: transparent;
             cursor: pointer;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            border: none; box-shadow: none;
+        }
+        .progress-bar input[type="range"]::-moz-range-thumb {
+            width: 1px; height: 1px;
+            background: transparent;
+            border: none; border-radius: 0; box-shadow: none;
+            cursor: pointer;
+        }
+
+        /* Controls */
+        .controls {
+            position: relative;
+            z-index: 3; /* Above background */
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .controls button {
+            padding: 10px 15px;
+            font-size: 16px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.85);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+            background-color: rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+        .controls button:hover {
+            color: #ffffff;
+            border-color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+        .controls button:active {
+            transform: scale(0.95);
+            background-color: rgba(255, 255, 255, 0.25);
+        }
+
+        /* Hidden File Input */
+        #fileInput {
+            display: none;
         }
     </style>
 </head>
 <body>
-    <div class="player">
-        <div class="progress-container">
-            <input type="range" id="progressBar" value="0" step="1" oninput="showPreview()" onmouseup="seekMusic()" ontouchend="seekMusic()">
-        </div>
-        <div class="cover" id="cover"></div>
-        <audio id="audio"></audio>
-        <div class="controls">
-            <button onclick="prevSong()">Prev</button>
-            <button onclick="playMusic()">Play</button>
-            <button onclick="pauseMusic()">Pause</button>
-            <button onclick="nextSong()">Next</button>
-            <input type="file" id="fileInput" accept="audio/*" multiple>
-        </div>
+<div class="player">
+    <div class="song-title" id="songTitle">No Song Loaded</div>
+    <div class="cover" id="cover"></div>
+    <audio id="audio" preload="metadata"></audio>
+    <div class="progress-bar">
+        <input type="range" id="progress" min="0" max="100" value="0">
+    </div>
+    <div class="controls">
+        <button onclick="prevTrack()" id="btn1">⏮️ Prev</button>
+        <button onclick="playMusic()" id="btn2">▶️ Play</button>
+        <button onclick="pauseMusic()" id="btn3">⏸️ Pause</button>
+        <button onclick="nextTrack()" id="btn4">Next ⏭️</button>
     </div>
 
-    <script>
-        const audio = document.getElementById('audio');
-        const progressBar = document.getElementById('progressBar');
-        const cover = document.getElementById('cover');
-        const fileInput = document.getElementById('fileInput');
-        let isDragging = false;
+    <input type="file" id="fileInput" accept="audio/*" multiple>
+</div>
 
-        let playlist = [];
-        let currentIndex = 0;
+<script>
+    // --- DOM 元素引用 ---
+    const audio = document.getElementById('audio');
+    const cover = document.getElementById('cover');
+    const songTitle = document.getElementById('songTitle');
+    const fileInput = document.getElementById('fileInput');
+    const progressBar = document.getElementById('progress');
+    const btn1 = document.getElementById('btn1');
+    const btn2 = document.getElementById('btn2');
+    const btn3 = document.getElementById('btn3');
+    const btn4 = document.getElementById('btn4');
+    const playerElement = document.querySelector('.player');
 
-        // 播放音乐
-        function playMusic() {
-            if (playlist.length > 0) {
-                audio.play();
-            }
+    // --- 库检查 ---
+    if (typeof ColorThief === 'undefined' || typeof window.jsmediatags === 'undefined') {
+        alert("Required libraries (ColorThief or jsmediatags) not loaded.");
+    }
+    const colorThief = new ColorThief();
+    const jsmediatags = window.jsmediatags;
+
+    // --- 状态变量 ---
+    let playlist = [];
+    let currentTrackIndex = 0;
+    let isDragging = false;
+    let currentBgUrl = '';
+    let isTransitioningBackground = false;
+
+    // --- 核心函数 ---
+    function playMusic() {
+        if (!audio.src && playlist.length > 0) {
+            loadTrack(currentTrackIndex);
+        } else if (audio.src && audio.paused) {
+            audio.play().catch(e => console.error("Audio play failed:", e));
+        }
+    }
+
+    function pauseMusic() {
+        audio.pause();
+    }
+
+    function prevTrack() {
+        if (playlist.length === 0) return;
+        currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
+        loadTrack(currentTrackIndex);
+    }
+
+    function nextTrack() {
+        if (playlist.length === 0) return;
+        currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
+        loadTrack(currentTrackIndex);
+    }
+
+    function loadTrack(index) {
+        if (index < 0 || index >= playlist.length) return;
+        const file = playlist[index];
+        if (!file) return;
+
+        if (audio.src && audio.src.startsWith('blob:')) {
+            URL.revokeObjectURL(audio.src);
         }
 
-        // 暂停音乐
-        function pauseMusic() {
-            audio.pause();
-        }
+        const objectURL = URL.createObjectURL(file);
+        audio.src = objectURL;
+        progressBar.value = 0;
+        updateProgressBarBackground(0);
+        songTitle.innerText = "Loading...";
 
-        // 切换到上一首
-        function prevSong() {
-            if (playlist.length > 0) {
-                currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
-                loadSong(currentIndex);
-                playMusic();
-            }
-        }
-
-        // 切换到下一首
-        function nextSong() {
-            if (playlist.length > 0) {
-                currentIndex = (currentIndex + 1) % playlist.length;
-                loadSong(currentIndex);
-                playMusic();
-            }
-        }
-
-        // 加载歌曲并设置封面
-        function loadSong(index) {
-            const file = playlist[index];
-            if (file) {
-                const objectURL = URL.createObjectURL(file);
-                audio.src = objectURL;
-                audio.load();
-
-                extractCover(file);
-            }
-        }
-
-        // 文件加载
-        fileInput.addEventListener('change', (event) => {
-            playlist = Array.from(event.target.files);
-            if (playlist.length > 0) {
-                currentIndex = 0;
-                loadSong(currentIndex);
-            }
-        });
-
-        // 提取封面图并设置背景
-        function extractCover(file) {
-            new jsmediatags.Reader(file).read({
-                onSuccess: (tag) => {
-                    const picture = tag.tags.picture;
-                    if (picture) {
-                        const base64String = arrayBufferToBase64(picture.data);
-                        const coverURL = `data:${picture.format};base64,${base64String}`;
-                        cover.style.backgroundImage = `url(${coverURL})`;
-                        document.querySelector('.player').style.setProperty('--background-image', `url(${coverURL})`);
-                    } else {
-                        setDefaultCover();
+        jsmediatags.read(file, {
+            onSuccess: (tag) => {
+                const metadata = tag.tags;
+                const title = metadata.title || file.name.replace(/\.[^/.]+$/, "");
+                songTitle.innerText = title;
+                if (metadata.picture) {
+                    const picture = metadata.picture;
+                    let base64String = "";
+                    const bytes = new Uint8Array(picture.data);
+                    for (let i = 0; i < bytes.length; i++) {
+                        base64String += String.fromCharCode(bytes[i]);
                     }
-                },
-                onError: () => setDefaultCover(),
+                    const coverURL = `data:${picture.format};base64,${window.btoa(base64String)}`;
+                    updateCover(coverURL);
+                } else {
+                    updateCover(null);
+                }
+            },
+            onError: (error) => {
+                console.error('Error reading tags:', file.name, error);
+                songTitle.innerText = file.name.replace(/\.[^/.]+$/, "");
+                updateCover(null);
+            }
+        });
+
+        audio.play().catch(e => {
+            console.error("Audio play prevented on load:", e);
+            btn3.style.display = 'none';
+            btn2.style.display = 'inline-block';
+        });
+    }
+
+    function updateCover(coverURL) {
+        const defaultCoverURL = 'https://via.placeholder.com/300x300?text=Click+to+Load';
+
+        const finalCoverURL = coverURL || defaultCoverURL;
+
+        cover.style.backgroundImage = `url("${finalCoverURL}")`;
+
+        // 使用 ColorThief 获取专辑封面的主色
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+            const color = colorThief.getColor(img);
+            if (color) {
+                const bgColor = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                playerElement.style.setProperty('--before-background-image', `url("${finalCoverURL}")`);
+                playerElement.style.setProperty('--before-background-color', bgColor);
+
+                // 在过渡期间也改变背景颜色
+                playerElement.style.setProperty('--after-background-image', `url("${finalCoverURL}")`);
+                playerElement.style.setProperty('--after-background-color', bgColor);
+            }
+        };
+        img.src = finalCoverURL;
+
+        if (!coverURL) {
+            playerElement.style.setProperty('--before-background-image', 'url("https://via.placeholder.com/800x600?text=Click+Cover+to+Load")');
+            playerElement.style.setProperty('--before-background-color', '#000');
+            playerElement.style.setProperty('--after-background-image', '');
+            playerElement.style.setProperty('--after-background-color', '');
+        }
+
+        // 过渡逻辑
+        if (finalCoverURL !== currentBgUrl && !isTransitioningBackground) {
+            isTransitioningBackground = true;
+
+            playerElement.style.setProperty('--after-opacity', '0.65');
+
+            setTimeout(() => {
+                playerElement.style.setProperty('--before-background-image', `url("${finalCoverURL}")`);
+                playerElement.style.setProperty('--before-background-color', playerElement.style.getPropertyValue('--after-background-color')); // 使用过渡后的颜色
+                playerElement.style.setProperty('--after-opacity', '0');
+                currentBgUrl = finalCoverURL;
+                isTransitioningBackground = false;
+            }, 1200);
+        } else if (finalCoverURL === currentBgUrl) {
+            playerElement.style.setProperty('--after-opacity', '0');
+            isTransitioningBackground = false;
+        }
+
+        updateDynamicColors();
+    }
+
+    function updateDynamicColors() {
+        const primaryTextColor = 'rgba(255, 255, 255, 0.95)';
+        const buttonColor = 'rgba(255, 255, 255, 0.85)';
+        const buttonBorderColor = 'rgba(255, 255, 255, 0.5)';
+        const textShadowBaseCSS = '0px 2px 6px rgba(0, 0, 0, 0.9), 0px 0px 1px rgba(0, 0, 0, 0.9)';
+        const buttonTextShadow = '0 1px 2px rgba(0, 0, 0, 0.7)';
+        const progressFillColor = '#e0e0e0';
+
+        songTitle.style.color = primaryTextColor;
+        songTitle.style.textShadow = textShadowBaseCSS;
+
+        [btn1, btn2, btn3, btn4].forEach(btn => {
+            btn.style.color = buttonColor;
+            btn.style.borderColor = buttonBorderColor;
+            btn.style.textShadow = buttonTextShadow;
+        });
+
+        progressBar.dataset.fillColor = progressFillColor;
+        updateProgressBarBackground(progressBar.value);
+    }
+
+    function updateProgressBarBackground(progressPercent) {
+        const fillColor = progressBar.dataset.fillColor || '#silver';
+        const safeProgressPercent = Math.max(0, Math.min(100, progressPercent));
+        progressBar.style.background = `linear-gradient(to right, ${fillColor} ${safeProgressPercent}%, #3b3b3b ${safeProgressPercent}%)`;
+    }
+
+    // --- 事件监听器 ---
+    cover.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (event) => {
+        const files = event.target.files;
+        if (files.length > 0) {
+            playlist.forEach(file => {
+                if (file.objectURL) {
+                    URL.revokeObjectURL(file.objectURL);
+                }
             });
+
+            playlist = Array.from(files);
+            currentTrackIndex = 0;
+            loadTrack(currentTrackIndex);
         }
+    });
 
-        // 转换图片数据
-        function arrayBufferToBase64(buffer) {
-            let binary = '';
-            const bytes = new Uint8Array(buffer);
-            const len = bytes.byteLength;
-            for (let i = 0; i < len; i++) {
-                binary += String.fromCharCode(bytes[i]);
-            }
-            return window.btoa(binary);
+    progressBar.addEventListener('input', () => {
+        const progress = progressBar.value;
+        updateProgressBarBackground(progress);
+        if (isDragging && audio.duration) {
+            audio.currentTime = (progress / 100) * audio.duration;
         }
+    });
 
-        // 设置默认封面
-        function setDefaultCover() {
-            const defaultCoverURL = 'https://via.placeholder.com/300x300?text=No+Cover';
-            cover.style.backgroundImage = `url(${defaultCoverURL})`;
-            document.querySelector('.player').style.setProperty('--background-image', `url(${defaultCoverURL})`);
+    progressBar.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        if (audio.duration) {
+            const rect = progressBar.getBoundingClientRect();
+            const percent = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
+            audio.currentTime = percent * audio.duration;
+            progressBar.value = percent * 100;
+            updateProgressBarBackground(percent * 100);
         }
+    });
 
-        // 音频元数据加载完成后设置进度条
-        audio.addEventListener('loadedmetadata', () => {
-            progressBar.max = Math.floor(audio.duration);
-        });
+    document.addEventListener('mousemove', (e) => {
+        if (isDragging && audio.duration) {}
+    });
 
-        // 更新进度条显示
-        audio.addEventListener('timeupdate', () => {
-            if (!isDragging) {
-                progressBar.value = Math.floor(audio.currentTime);
-            }
-        });
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
 
-        // 拖动时预览
-        function showPreview() {
-            isDragging = true;
+    audio.addEventListener('timeupdate', () => {
+        if (!isDragging && audio.duration) {
+            const progress = (audio.currentTime / audio.duration) * 100 || 0;
+            progressBar.value = progress;
+            updateProgressBarBackground(progress);
         }
+    });
 
-        // 拖动结束时跳转播放位置
-        function seekMusic() {
-            isDragging = false;
-            audio.currentTime = progressBar.value;
+    audio.addEventListener('ended', () => {
+        nextTrack();
+    });
+
+    audio.addEventListener('play', () => {
+        btn2.style.display = 'none';
+        btn3.style.display = 'inline-block';
+    });
+
+    audio.addEventListener('pause', () => {
+        btn3.style.display = 'none';
+        btn2.style.display = 'inline-block';
+    });
+
+    document.addEventListener('dragover', (e) => {
+        e.preventDefault();
+    });
+
+    document.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const droppedFiles = e.dataTransfer.files;
+        if (droppedFiles.length > 0) {
+            fileInput.files = droppedFiles;
+            fileInput.dispatchEvent(new Event('change', { bubbles: true }));
         }
-    </script>
+    });
 
-    <!-- 引入 jsmediatags -->
-    <script src="https://cdn.jsdelivr.net/npm/jsmediatags/dist/jsmediatags.min.js"></script>
+    // --- 初始设置 ---
+    function initializePlayer() {
+        updateProgressBarBackground(0);
+        btn3.style.display = 'none';
+        btn2.style.display = 'inline-block';
+
+        const initialBg = `url("https://via.placeholder.com/800x600?text=Click+Cover+to+Load")`;
+        playerElement.style.setProperty('--before-background-image', initialBg);
+        playerElement.style.setProperty('--before-background-color', '#000');
+        playerElement.style.setProperty('--after-background-image', '');
+        playerElement.style.setProperty('--after-background-color', '');
+        playerElement.style.setProperty('--after-opacity', '0');
+        currentBgUrl = initialBg;
+        isTransitioningBackground = false;
+
+        updateDynamicColors();
+    }
+
+    initializePlayer();
+</script>
 </body>
 </html>
