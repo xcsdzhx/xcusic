@@ -1,0 +1,69 @@
+.player {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    z-index: 0;
+}
+.player::before, .player::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+    background-size: cover;
+    background-position: center;
+    filter: blur(60px) brightness(0.85) saturate(1.4);
+    opacity: 0.85;
+    transition: background-image 1.2s cubic-bezier(.4,0,.2,1), opacity 1.2s cubic-bezier(.4,0,.2,1);
+    animation: bgFlow 48s infinite alternate ease-in-out;
+}
+.player::before {
+    background-image: var(--before-background-image);
+    background-color: var(--before-background-color, #000);
+    opacity: 0.85;
+    background-blend-mode: lighten, screen;
+    background: linear-gradient(120deg, rgba(255,0,120,0.12) 0%, rgba(0,180,255,0.10) 100%), var(--before-background-image);
+}
+.player::after {
+    background-image: var(--after-background-image);
+    background-color: var(--after-background-color, transparent);
+    opacity: var(--after-opacity, 0);
+    box-shadow: 0 0 200px 80px rgba(255,0,120,0.18), 0 0 300px 120px rgba(0,180,255,0.13);
+    background-blend-mode: lighten, screen;
+}
+@keyframes bgFlow {
+    0% { transform: scale(1) translate(0, 0); }
+    25% { transform: scale(1.06) translate(-30px, -18px); }
+    50% { transform: scale(1.12) translate(0, -28px); }
+    75% { transform: scale(1.06) translate(30px, 18px); }
+    100% { transform: scale(1) translate(0, 0); }
+}
+.player > *:not(.player::before):not(.player::after) {
+    position: relative;
+    z-index: 2;
+}
+.colorflow-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.7;
+    background: conic-gradient(from 0deg, #ff0078 0%, #00b4ff 40%, #ffe156 70%, #ff0078 100%);
+    animation: colorFlowMove 16s linear infinite;
+    filter: blur(80px) brightness(1.1) saturate(1.5);
+    transition: opacity 1.2s cubic-bezier(.4,0,.2,1);
+    mix-blend-mode: lighten;
+}
+@keyframes colorFlowMove {
+    0% { transform: scale(1.1) rotate(0deg); filter: blur(80px) brightness(1.1) saturate(1.5); }
+    30% { transform: scale(1.15) rotate(30deg); filter: blur(100px) brightness(1.2) saturate(1.7); }
+    60% { transform: scale(1.2) rotate(120deg); filter: blur(90px) brightness(1.05) saturate(1.3); }
+    100% { transform: scale(1.1) rotate(360deg); filter: blur(80px) brightness(1.1) saturate(1.5); }
+}

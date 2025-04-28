@@ -8,206 +8,119 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
 
+    <link rel="stylesheet" type="text/css" href="gcss.css">
+    <link rel="stylesheet" type="text/css" href="final.css">
     <style>
-        /* --- Base Styles --- */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body, html {
-            height: 100%;
-            width: 100%;
-            overflow: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #000;
-        }
-
-        /* --- Player Container --- */
-        .player {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            padding: 20px;
-            /* CSS Variables for Background Control */
-            --before-background-image: url('https://via.placeholder.com/800x600?text=Click+Cover+to+Load');
-            --after-background-image: url(''); /* Initially empty */
-            --after-opacity: 0; /* Initial opacity for ::after */
-        }
-
-        /* --- Blurred Background Layers --- */
-        /* Common styles for both pseudo-elements */
-        .player::before,
-        .player::after {
-            content: '';
-            position: absolute;
-            top: -10px; left: -10px; right: -10px; bottom: -10px;
-            width: calc(100% + 20px);
-            height: calc(100% + 20px);
-            background-size: cover;
-            background-position: center;
-            filter: blur(30px); /* Adjusted blur - 降低模糊度 */
-            /* Apply flow animation to both */
-            animation: bgFlow 60s infinite alternate ease-in-out;
-            background-color: var(--before-background-color, #000); /* 使用 CSS 变量 */
-        }
-
-        /* ::before - Bottom layer (always visible at base opacity) */
-        .player::before {
-            background-image: var(--before-background-image);
-            z-index: 1; /* Bottom layer */
-            opacity: 0.8; /* Adjusted opacity - 提高透明度 */
-            /* No transition needed here for background image itself */
-        }
-
-        /* ::after - Top layer (for crossfading) */
-        .player::after {
-            background-image: var(--after-background-image);
-            z-index: 1.1; /* Just above ::before */
-            opacity: var(--after-opacity); /* Controlled by JS via CSS variable */
-            /* Smooth opacity transition for crossfade */
-            transition: opacity 1.2s ease-in-out; /* Duration for smooth fade */
-        }
-
-        /* Background Flow Animation */
-        @keyframes bgFlow {
-            0% { transform: scale(1.15) translate(0px, 0px); }
-            25% { transform: scale(1.20) translate(-10px, 15px); }
-            50% { transform: scale(1.25) translate(10px, -10px); }
-            75% { transform: scale(1.20) translate(5px, 10px); }
-            100% { transform: scale(1.15) translate(0px, 0px); }
-        }
-
-        /* --- Content Elements Styling --- */
-        .song-title {
-            position: relative;
-            margin-bottom: 20px;
-            text-align: center;
-            font-size: 1.8em;
-            font-weight: 600;
-            z-index: 3; /* Above background layers */
-            color: rgba(255, 255, 255, 0.95);
-            text-shadow: 0px 2px 6px rgba(0, 0, 0, 0.9), 0px 0px 1px rgba(0, 0, 0, 0.9);
-            width: 90%;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-            transition: color 0.5s ease;
-        }
-
-        .cover {
-            position: relative;
-            z-index: 2; /* Above background layers */
-            width: 60vmin;
-            height: 60vmin;
-            max-width: 300px;
-            max-height: 300px;
-            background-image: url('https://via.placeholder.com/300x300?text=Click+to+Load');
-            background-size: cover;
-            background-position: center;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-            margin-bottom: 30px;
-            /* Shorter transition for the main cover image itself */
-            transition: background-image 0.5s ease-in-out;
-            cursor: pointer; /* Indicate clickable */
-        }
-
-        /* Progress Bar */
-        .progress-bar {
-            position: relative;
-            width: 80%;
-            max-width: 400px;
-            z-index: 3; /* Above background */
-            margin-bottom: 25px;
-        }
-
-        .progress-bar input[type="range"] {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 100%;
-            height: 6px;
-            background: linear-gradient(to right, silver 0%, #3b3b3b 0%);
-            border-radius: 3px;
-            outline: none;
-            transition: height 0.2s ease, background 0.1s linear;
-            cursor: pointer;
-        }
-
-        .progress-bar input[type="range"]:hover {
-            height: 10px; /* Track thickens on hover */
-        }
-
-        /* Hide Progress Bar Thumb */
-        .progress-bar input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 1px; height: 1px;
-            background: transparent;
-            cursor: pointer;
-            border: none; box-shadow: none;
-        }
-        .progress-bar input[type="range"]::-moz-range-thumb {
-            width: 1px; height: 1px;
-            background: transparent;
-            border: none; border-radius: 0; box-shadow: none;
-            cursor: pointer;
-        }
-
-        /* Controls */
-        .controls {
-            position: relative;
-            z-index: 3; /* Above background */
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .controls button {
-            padding: 10px 15px;
-            font-size: 16px;
-            font-weight: 500;
-            color: rgba(255, 255, 255, 0.85);
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
-            background-color: rgba(0, 0, 0, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            user-select: none;
-        }
-        .controls button:hover {
-            color: #ffffff;
-            border-color: #ffffff;
-            background-color: rgba(255, 255, 255, 0.15);
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-        }
-        .controls button:active {
-            transform: scale(0.95);
-            background-color: rgba(255, 255, 255, 0.25);
-        }
-
-        /* Hidden File Input */
-        #fileInput {
-            display: none;
-        }
+    .player {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        z-index: 0;
+    }
+    .player::before, .player::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: none;
+        background-size: cover;
+        background-position: center;
+        filter: blur(60px) brightness(0.85) saturate(1.4);
+        opacity: 0.85;
+        transition: background-image 1.2s cubic-bezier(.4,0,.2,1), opacity 1.2s cubic-bezier(.4,0,.2,1);
+        animation: bgFlow 48s infinite alternate ease-in-out;
+    }
+    .player::before {
+        background-image: var(--before-background-image);
+        background-color: var(--before-background-color, #000);
+        opacity: 0.85;
+        /* 增加彩色渐变动画层 */
+        background-blend-mode: lighten, screen;
+        background: linear-gradient(120deg, rgba(255,0,120,0.12) 0%, rgba(0,180,255,0.10) 100%), var(--before-background-image);
+    }
+    .player::after {
+        background-image: var(--after-background-image);
+        background-color: var(--after-background-color, transparent);
+        opacity: var(--after-opacity, 0);
+        /* 增加渐变动画层 */
+        box-shadow: 0 0 200px 80px rgba(255,0,120,0.18), 0 0 300px 120px rgba(0,180,255,0.13);
+        background-blend-mode: lighten, screen;
+    }
+    @keyframes bgFlow {
+        0% { transform: scale(1) translate(0, 0); }
+        25% { transform: scale(1.06) translate(-30px, -18px); }
+        50% { transform: scale(1.12) translate(0, -28px); }
+        75% { transform: scale(1.06) translate(30px, 18px); }
+        100% { transform: scale(1) translate(0, 0); }
+    }
+    .player > *:not(.player::before):not(.player::after) {
+        position: relative;
+        z-index: 2;
+    }
+    .player {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        z-index: 0;
+    }
+    .colorflow-bg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: none;
+        opacity: 0.7;
+        background: conic-gradient(from 0deg, #ff0078 0%, #00b4ff 40%, #ffe156 70%, #ff0078 100%);
+        animation: colorFlowMove 16s linear infinite;
+        filter: blur(80px) brightness(1.1) saturate(1.5);
+        transition: opacity 1.2s cubic-bezier(.4,0,.2,1);
+        mix-blend-mode: lighten;
+    }
+    @keyframes colorFlowMove {
+        0% { transform: scale(1.1) rotate(0deg); filter: blur(80px) brightness(1.1) saturate(1.5); }
+        30% { transform: scale(1.15) rotate(30deg); filter: blur(100px) brightness(1.2) saturate(1.7); }
+        60% { transform: scale(1.2) rotate(120deg); filter: blur(90px) brightness(1.05) saturate(1.3); }
+        100% { transform: scale(1.1) rotate(360deg); filter: blur(80px) brightness(1.1) saturate(1.5); }
+    }
+    .player::before {
+        background-image: var(--before-background-image);
+        background-color: var(--before-background-color, #000);
+        opacity: 0.85;
+        /* 增加彩色渐变动画层 */
+        background-blend-mode: lighten, screen;
+        background: linear-gradient(120deg, rgba(255,0,120,0.12) 0%, rgba(0,180,255,0.10) 100%), var(--before-background-image);
+    }
+    .player::after {
+        background-image: var(--after-background-image);
+        background-color: var(--after-background-color, transparent);
+        opacity: var(--after-opacity, 0);
+        /* 增加渐变动画层 */
+        box-shadow: 0 0 200px 80px rgba(255,0,120,0.18), 0 0 300px 120px rgba(0,180,255,0.13);
+        background-blend-mode: lighten, screen;
+    }
+    @keyframes bgFlow {
+        0% { transform: scale(1) translate(0, 0); }
+        25% { transform: scale(1.06) translate(-30px, -18px); }
+        50% { transform: scale(1.12) translate(0, -28px); }
+        75% { transform: scale(1.06) translate(30px, 18px); }
+        100% { transform: scale(1) translate(0, 0); }
+    }
+    .player > *:not(.player::before):not(.player::after) {
+        position: relative;
+        z-index: 2;
+    }
     </style>
 </head>
 <body>
 <div class="player">
+    <div class="colorflow-bg"></div>
     <div class="song-title" id="songTitle">No Song Loaded</div>
     <div class="cover" id="cover"></div>
     <audio id="audio" preload="metadata"></audio>
@@ -330,19 +243,31 @@
 
         cover.style.backgroundImage = `url("${finalCoverURL}")`;
 
-        // 使用 ColorThief 获取专辑封面的主色
+        // 使用 ColorThief 获取专辑封面的主色和调色板
         const img = new Image();
         img.crossOrigin = 'Anonymous';
         img.onload = () => {
-            const color = colorThief.getColor(img);
-            if (color) {
-                const bgColor = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-                playerElement.style.setProperty('--before-background-image', `url("${finalCoverURL}")`);
-                playerElement.style.setProperty('--before-background-color', bgColor);
+            let color = [40,40,40];
+            let palette = [];
+            try {
+                color = colorThief.getColor(img);
+                palette = colorThief.getPalette(img, 5);
+            } catch(e) {
+                color = [40,40,40];
+                palette = [[40,40,40],[80,80,80],[120,120,120],[160,160,160],[200,200,200]];
+            }
+            const bgColor = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+            playerElement.style.setProperty('--before-background-image', `url("${finalCoverURL}")`);
+            playerElement.style.setProperty('--before-background-color', bgColor);
+            playerElement.style.setProperty('--after-background-image', `url("${finalCoverURL}")`);
+            playerElement.style.setProperty('--after-background-color', bgColor);
 
-                // 在过渡期间也改变背景颜色
-                playerElement.style.setProperty('--after-background-image', `url("${finalCoverURL}")`);
-                playerElement.style.setProperty('--after-background-color', bgColor);
+            // 生成渐变色字符串
+            let stops = palette.map((c,i) => `rgb(${c[0]},${c[1]},${c[2]}) ${(i*100/(palette.length-1)).toFixed(1)}%`).join(', ');
+            let conic = `conic-gradient(from 0deg, ${stops}, rgb(${palette[0][0]},${palette[0][1]},${palette[0][2]}) 100%)`;
+            const colorflowBg = document.querySelector('.colorflow-bg');
+            if(colorflowBg) {
+                colorflowBg.style.background = conic;
             }
         };
         img.src = finalCoverURL;
@@ -352,6 +277,10 @@
             playerElement.style.setProperty('--before-background-color', '#000');
             playerElement.style.setProperty('--after-background-image', '');
             playerElement.style.setProperty('--after-background-color', '');
+            const colorflowBg = document.querySelector('.colorflow-bg');
+            if(colorflowBg) {
+                colorflowBg.style.background = 'conic-gradient(from 0deg, #ff0078 0%, #00b4ff 40%, #ffe156 70%, #ff0078 100%)';
+            }
         }
 
         // 过渡逻辑
@@ -362,7 +291,7 @@
 
             setTimeout(() => {
                 playerElement.style.setProperty('--before-background-image', `url("${finalCoverURL}")`);
-                playerElement.style.setProperty('--before-background-color', playerElement.style.getPropertyValue('--after-background-color')); // 使用过渡后的颜色
+                playerElement.style.setProperty('--before-background-color', playerElement.style.getPropertyValue('--after-background-color'));
                 playerElement.style.setProperty('--after-opacity', '0');
                 currentBgUrl = finalCoverURL;
                 isTransitioningBackground = false;
@@ -506,3 +435,5 @@
 </script>
 </body>
 </html>
+
+<script src="final.js"></script>
